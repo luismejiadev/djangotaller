@@ -44,9 +44,12 @@ ROOT_URLCONF = 'mysite.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': os.path.join(BASE_DIR, 'templates'),
         'OPTIONS': {
+            'loaders': [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+            ],
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
@@ -65,8 +68,12 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB'),
+        'USER': os.environ.get('POSTGRES_USER'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
+        'HOST': 'db',
+        'PORT': os.environ.get('POSTGRES_PORT'),
     }
 }
 
@@ -112,3 +119,25 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# REDIS SETTINGS
+REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
+REDIS_HOST = os.environ.get('REDIS_HOST', 'redis_db')
+REDIS_DB = 0
+
+# CELERY / RABBITMQ SETTINGS
+BROKER_URL = "amqp://{user}:{password}@{host}:{port}/{vhost}".format(
+    user=os.environ.get('RABBITMQ_DEFAULT_USER', 'rabbitmq_user'),
+    password=os.environ.get('RABBITMQ_DEFAULT_PASS', 'rabbitmq_pass'),
+    host=os.environ.get('RABBITMQ_HOST', 'rabbitmq_host'),
+    port=os.environ.get('RABBITMQ_DEFAULT_PORT', '5672'),
+    vhost=os.environ.get('RABBITMQ_DEFAULT_VHOST', 'survey_app')
+)
+CELERY_BROKER_URL=BROKER_URL
+CELERY_RESULT_BACKEND = "redis"
+CELERY_TASK_RESULT_EXPIRES = 60 * 60 * 24 * 7
+
+
+CELERY_REDIS_HOST = REDIS_HOST
+CELERY_REDIS_PORT = 6379

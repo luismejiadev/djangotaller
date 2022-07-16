@@ -1,8 +1,10 @@
 import datetime
 
 from django.db import models
-
 from django.utils import timezone
+
+from polls.utils import get_redis
+
 
 class Question(models.Model):
     question_text = models.CharField(max_length=200)
@@ -21,3 +23,12 @@ class Choice(models.Model):
 
     def __str__(self):
         return self.choice_text
+
+    @property
+    def stats_votes(self):
+        redis_value = get_redis().get(self.redis_key) or 0
+        return int(redis_value)
+
+    @property
+    def redis_key(self):
+        return "Choice%s" % self.id
