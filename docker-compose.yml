@@ -1,0 +1,114 @@
+version: '3'
+
+services:
+  polls-app:
+      build:
+        context: .
+        dockerfile: ./compose/django/Dockerfile
+      image: polls_django
+      container_name: polls-app
+      restart: unless-stopped
+      stdin_open: true
+      tty: true
+      env_file:
+        - ./environments/development.env
+      depends_on:
+        - db
+        - polls-redis
+        - polls-rabbitmq
+      links:
+        - "polls-redis:redis_host"
+        - "polls-rabbitmq:rabbitmq_host"
+      volumes:
+        - .:/djangoapp
+        - ./volumes/logs:/var/log
+      command: /start.sh
+      ports:
+        - "8000:8000"
+
+  db:
+    image: postgres:10.1  # install postgre here
+    container_name: polls-db
+    command: postgres -c listen_addresses='*'
+    volumes:
+      - postgresql-volume:/var/lib/postgresql/data # avoid data removal when shut docker down we put volume in our local
+
+  polls-redis:
+      image: redis:4.0
+      container_name: polls-redis
+      env_file:
+        - ./environments/development.env
+      ports:
+        - "6379:6379"
+
+  polls-rabbitmq:
+      image: rabbitmq:3-management
+      container_name: polls-rabbitmq
+      env_file:
+        - ./environments/development.env
+      ports:
+        - "5672:5672"
+        - "15672:15672"
+
+  polls-celery:
+      build:
+        context: .
+        dockerfile: ./compose/django/Dockerfile
+      image: polls_django
+      container_name: polls-celery
+      restart: unless-stopped
+      env_file:
+        - ./environments/development.env
+      depends_on:
+        - db
+        - polls-redis
+        - polls-rabbitmq
+      volumes:
+        - .:/djangoapp
+      links:
+        - "polls-redis:redis_host"
+        - "polls-rabbitmq:rabbitmq_host"
+      command: celery -A mysite worker -l INFO
+
+  polls-stats:
+      build:
+        context: .
+        dockerfile: ./compose/django/Dockerfile
+      image: polls_django
+      container_name: polls-stats
+      restart: unless-stopped
+      env_file:
+        - ./environments/development.env
+      depends_on:
+        - db
+        - polls-redis
+        - polls-rabbitmq
+      volumes:
+        - .:/djangoapp
+      links:
+        - "polls-redis:redis_host"
+        - "polls-rabbitmq:rabbitmq_host"
+      command: celery -A mysite worker -l INFO --queues=stats
+
+  polls-taller:
+      build:
+        context: .
+        dockerfile: ./compose/django/Dockerfile
+      image: polls_django
+      container_name: polls-celery-taller
+      restart: unless-stopped
+      env_file:
+        - ./environments/development.env
+      depends_on:
+        - db
+        - polls-redis
+        - polls-rabbitmq
+      volumes:
+        - .:/djangoapp
+      links:
+        - "polls-redis:redis_host"
+        - "polls-rabbitmq:rabbitmq_host"
+      command: celery -A mysite worker -l INFO --queues=taller
+
+volumes:
+  postgresql-volume:  # pointing volume to db
